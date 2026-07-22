@@ -61,6 +61,28 @@ node verify.mjs && claude
 ```
 </details>
 
+## 🐧 WSL / 리눅스 환경 (내부 Claude Code가 WSL에서 도는 경우)
+Windows PC라도 **Claude Code를 WSL(리눅스) 안에서** 돌린다면, 브라우저도 **리눅스용**이어야 한다.
+명령은 **bash 문법**을 쓴다 — PowerShell/cmd 문법(`$env:...`, `set ...`)은 WSL에서 `command not found` 난다.
+
+```bash
+# WSL(bash) 안에서, playwright-mcp 폴더에서
+npm run setup        # setup.mjs 가 OS 자동감지 → 리눅스 크로미움을 받는다
+# 수동으로 브라우저만 받으려면:
+PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium
+npm run verify
+```
+
+크로미움은 받았는데 **실행이 안 되면**(리눅스 구동 라이브러리 부족):
+```bash
+sudo npx playwright install-deps chromium
+#   또는 한 번에:  sudo npx playwright install --with-deps chromium
+```
+
+> ⚠ **OS 불일치 주의** — WSL의 Claude Code는 **리눅스 크로미움**을 찾는다.
+> Windows(PowerShell/cmd)에서 `npm run setup` 을 돌렸다면 그건 Windows 크로미움이라
+> WSL에선 "브라우저 없음"으로 뜬다. **설치도 실행도 전부 WSL 안에서** 해야 한다.
+
 ## B. 폐쇄망 오프라인 (사내 PC가 npm/CDN 막힘) — 폴더째 반입
 브라우저 바이너리는 **OS 종속**이라, **인터넷 되는 Windows PC에서** 폴더째 만들어 반입한다.
 `npm run setup` 은 `PLAYWRIGHT_BROWSERS_PATH=0` 으로 크로미움을 **`node_modules` 안**에 넣으므로,
@@ -120,3 +142,5 @@ page-agent-shop.html 열어서 나이키 검색하고 리뷰 많은 순 1등 상
 | verify 초록불이 안 뜨고 `[mcp]` 에러 | `node_modules/@playwright/mcp` 손상 → `npm install` 다시. 로그의 `[mcp]` 줄 확인 |
 | `claude` 시작 시 playwright MCP 가 안 보임 | 이 폴더 안에서 `claude` 를 실행했는지 확인(`.mcp.json` 이 여기 있음) |
 | approve 했는데 브라우저를 못 찾음 | install 과 실행이 같은 폴더인지, `npm run verify` 가 통과하는지 먼저 확인 |
+| `$env:...` / `set ...` 에서 `command not found` | **WSL(리눅스)** 인데 Windows 셸 문법을 씀 → 위 **🐧 WSL** 섹션의 bash 명령 사용 |
+| WSL에서 크로미움은 받았는데 실행 실패 | 리눅스 구동 라이브러리 부족 → `sudo npx playwright install-deps chromium` |
