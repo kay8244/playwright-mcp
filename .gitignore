@@ -1,0 +1,13 @@
+node_modules/
+auth.json
+trace.zip
+error*.png
+result.png
+output.csv
+run.log
+
+# playwright-mcp 실행 산출물 / 오프라인 빌드
+.playwright-mcp/
+*-offline-win.zip
+
+.omc/

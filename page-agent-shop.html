@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>미니샵 — Page Agent 멀티스텝 데모</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; color: #18181b; background: #fafafa; }
+    header { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #e4e4e7; padding: 12px 20px; display: flex; align-items: center; gap: 12px; z-index: 10; }
+    .logo { font-weight: 800; font-size: 18px; color: #2563eb; white-space: nowrap; }
+    header .search { flex: 1; display: flex; gap: 8px; max-width: 520px; }
+    header input[type=text] { flex: 1; padding: 9px 12px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 14px; }
+    .btn { border: 0; border-radius: 8px; padding: 9px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-ghost { background: #f4f4f5; color: #18181b; }
+    .btn-ghost:hover { background: #e4e4e7; }
+    .cart-btn { position: relative; }
+    .cart-badge { position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
+    main { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; align-items: center; }
+    .filters label { font-size: 13px; color: #52525b; font-weight: 500; }
+    .filters select { padding: 7px 10px; border: 1px solid #d4d4d8; border-radius: 7px; font-size: 13px; background: #fff; }
+    .count { margin-left: auto; font-size: 13px; color: #71717a; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    .card { background: #fff; border: 1px solid #e4e4e7; border-radius: 12px; padding: 14px; cursor: pointer; transition: box-shadow .15s, transform .15s; }
+    .card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.08); transform: translateY(-2px); }
+    .thumb { font-size: 44px; text-align: center; padding: 14px 0; background: #f4f4f5; border-radius: 8px; margin-bottom: 10px; }
+    .brand { font-size: 11px; color: #a1a1aa; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .pname { font-size: 14px; font-weight: 600; margin: 3px 0 6px; line-height: 1.35; }
+    .price { font-size: 16px; font-weight: 800; }
+    .meta { font-size: 12px; color: #71717a; margin-top: 6px; display: flex; gap: 10px; }
+    .tag { display: inline-block; font-size: 10px; background: #eff6ff; color: #2563eb; padding: 2px 7px; border-radius: 999px; font-weight: 600; margin-top: 6px; }
+    /* detail */
+    .detail { background: #fff; border: 1px solid #e4e4e7; border-radius: 14px; padding: 24px; }
+    .detail .thumb { font-size: 88px; padding: 30px 0; }
+    .detail h2 { margin: 8px 0 4px; }
+    .detail .price { font-size: 26px; margin: 12px 0; }
+    .detail .actions { display: flex; gap: 10px; margin-top: 18px; }
+    .hidden { display: none; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #18181b; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 50; }
+    .toast.show { opacity: 1; }
+    .empty { text-align: center; color: #a1a1aa; padding: 60px 0; }
+    .cart-item { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #e4e4e7; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+    .cart-item .thumb { font-size: 30px; padding: 0; margin: 0; background: none; width: 44px; }
+    .note { background: #f0f9ff; border: 1px solid #bae6fd; padding: 10px 14px; border-radius: 8px; font-size: 13px; color: #075985; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">🛍 미니샵</div>
+    <div class="search">
+      <input type="text" id="searchInput" placeholder="상품 검색 (예: 나이키, 운동화)" onkeydown="if(event.key==='Enter')doSearch()" />
+      <button class="btn btn-primary" id="searchBtn" onclick="doSearch()">검색</button>
+    </div>
+    <button class="btn btn-ghost cart-btn" id="cartBtn" onclick="showCart()">🛒 장바구니
+      <span class="cart-badge hidden" id="cartBadge">0</span>
+    </button>
+  </header>
+
+  <main>
+    <div class="note">
+      🧪 <b>Page Agent 멀티스텝 데모</b> — 로컬 전용(데이터 유출 없음). 오른쪽 패널에 아래처럼 시켜보세요:
+      <ul style="margin:8px 0 0; padding-left:18px;">
+        <li><code>나이키를 검색하고, 리뷰 많은 순으로 정렬해서 리뷰가 가장 많은 상품의 상세페이지를 열어줘</code></li>
+        <li><code>남성 신발만 필터하고 평점 높은 순으로 정렬한 뒤 1등 상품을 장바구니에 담아줘</code></li>
+        <li><code>가장 인기있는(리뷰 최다) 상품을 찾아 장바구니에 담고 장바구니를 열어줘</code></li>
+      </ul>
+    </div>
+
+    <!-- LIST VIEW -->
+    <div id="listView">
+      <div class="filters">
+        <label>카테고리</label>
+        <select id="categoryFilter" onchange="render()">
+          <option value="all">전체</option>
+          <option value="men">남성</option>
+          <option value="women">여성</option>
+        </select>
+        <label>브랜드</label>
+        <select id="brandFilter" onchange="render()">
+          <option value="all">전체</option>
+          <option value="Nike">Nike</option>
+          <option value="Adidas">Adidas</option>
+          <option value="New Balance">New Balance</option>
+        </select>
+        <label>정렬</label>
+        <select id="sortSelect" onchange="render()">
+          <option value="default">기본순</option>
+          <option value="price_asc">가격 낮은순</option>
+          <option value="price_desc">가격 높은순</option>
+          <option value="reviews_desc">리뷰 많은순</option>
+          <option value="rating_desc">평점 높은순</option>
+        </select>
+        <span class="count" id="countLabel"></span>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <!-- DETAIL VIEW -->
+    <div id="detailView" class="hidden"></div>
+
+    <!-- CART VIEW -->
+    <div id="cartView" class="hidden"></div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const PRODUCTS = [
+      { id: 1,  name: '나이키 에어맥스 남성 운동화',      brand: 'Nike',        cat: 'men',   price: 129000, reviews: 1842, rating: 4.7, emoji: '👟' },
+      { id: 2,  name: '나이키 페가수스 40 남성',          brand: 'Nike',        cat: 'men',   price: 139000, reviews: 3120, rating: 4.8, emoji: '👟' },
+      { id: 3,  name: '나이키 코르테즈 여성 클래식',       brand: 'Nike',        cat: 'women', price: 99000,  reviews: 980,  rating: 4.5, emoji: '👟' },
+      { id: 4,  name: '나이키 리액트 남성 러닝화',         brand: 'Nike',        cat: 'men',   price: 159000, reviews: 640,  rating: 4.6, emoji: '👟' },
+      { id: 5,  name: '아디다스 울트라부스트 남성',        brand: 'Adidas',      cat: 'men',   price: 189000, reviews: 2210, rating: 4.9, emoji: '🥾' },
+      { id: 6,  name: '아디다스 삼바 남성 스니커즈',       brand: 'Adidas',      cat: 'men',   price: 119000, reviews: 4530, rating: 4.6, emoji: '👟' },
+      { id: 7,  name: '아디다스 스탠스미스 여성',          brand: 'Adidas',      cat: 'women', price: 109000, reviews: 1750, rating: 4.4, emoji: '👟' },
+      { id: 8,  name: '뉴발란스 992 남성 운동화',          brand: 'New Balance', cat: 'men',   price: 249000, reviews: 890,  rating: 4.8, emoji: '🥾' },
+      { id: 9,  name: '뉴발란스 530 여성 데일리',          brand: 'New Balance', cat: 'women', price: 99000,  reviews: 2680, rating: 4.7, emoji: '👟' },
+      { id: 10, name: '뉴발란스 1080 남성 러닝화',         brand: 'New Balance', cat: 'men',   price: 179000, reviews: 1320, rating: 4.7, emoji: '👟' },
+      { id: 11, name: '나이키 조던1 로우 남성',            brand: 'Nike',        cat: 'men',   price: 149000, reviews: 5210, rating: 4.9, emoji: '🥾' },
+      { id: 12, name: '아디다스 가젤 여성 스니커즈',        brand: 'Adidas',      cat: 'women', price: 89000,  reviews: 760,  rating: 4.3, emoji: '👟' },
+    ]
+
+    const cart = []
+    let searchTerm = ''
+
+    const won = (n) => n.toLocaleString('ko-KR') + '원'
+    const el = (id) => document.getElementById(id)
+
+    function toast(msg) {
+      const t = el('toast'); t.textContent = msg; t.classList.add('show')
+      clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove('show'), 1800)
+    }
+
+    function doSearch() {
+      searchTerm = el('searchInput').value.trim().toLowerCase()
+      showList(); render()
+    }
+
+    function currentList() {
+      let list = PRODUCTS.slice()
+      if (searchTerm) list = list.filter(p => (p.name + ' ' + p.brand).toLowerCase().includes(searchTerm))
+      const cat = el('categoryFilter').value
+      if (cat !== 'all') list = list.filter(p => p.cat === cat)
+      const brand = el('brandFilter').value
+      if (brand !== 'all') list = list.filter(p => p.brand === brand)
+      const sort = el('sortSelect').value
+      if (sort === 'price_asc') list.sort((a, b) => a.price - b.price)
+      else if (sort === 'price_desc') list.sort((a, b) => b.price - a.price)
+      else if (sort === 'reviews_desc') list.sort((a, b) => b.reviews - a.reviews)
+      else if (sort === 'rating_desc') list.sort((a, b) => b.rating - a.rating)
+      return list
+    }
+
+    function render() {
+      const list = currentList()
+      el('countLabel').textContent = `${list.length}개 상품`
+      const grid = el('grid')
+      if (list.length === 0) { grid.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>'; return }
+      grid.innerHTML = list.map(p => `
+        <div class="card" role="button" onclick="showDetail(${p.id})">
+          <div class="thumb">${p.emoji}</div>
+          <div class="brand">${p.brand}</div>
+          <div class="pname">${p.name}</div>
+          <div class="price">${won(p.price)}</div>
+          <div class="meta"><span>⭐ ${p.rating}</span><span>리뷰 ${p.reviews.toLocaleString()}개</span></div>
+          <div class="tag">${p.cat === 'men' ? '남성' : '여성'}</div>
+        </div>`).join('')
+    }
+
+    function showList() {
+      el('listView').classList.remove('hidden')
+      el('detailView').classList.add('hidden')
+      el('cartView').classList.add('hidden')
+      location.hash = '#/list'
+    }
+
+    function showDetail(id) {
+      const p = PRODUCTS.find(x => x.id === id)
+      el('detailView').innerHTML = `
+        <div class="detail">
+          <button class="btn btn-ghost" onclick="showList()">← 목록으로</button>
+          <div class="thumb">${p.emoji}</div>
+          <div class="brand">${p.brand}</div>
+          <h2>${p.name}</h2>
+          <div class="meta"><span>⭐ ${p.rating}</span><span>리뷰 ${p.reviews.toLocaleString()}개</span><span>${p.cat === 'men' ? '남성' : '여성'}</span></div>
+          <div class="price">${won(p.price)}</div>
+          <p style="color:#52525b; font-size:14px;">최고의 착화감과 디자인. 데모용 더미 상품 설명입니다.</p>
+          <div class="actions">
+            <button class="btn btn-primary" onclick="addToCart(${p.id})">장바구니 담기</button>
+            <button class="btn btn-ghost" onclick="buyNow(${p.id})">바로 구매</button>
+          </div>
+        </div>`
+      el('listView').classList.add('hidden')
+      el('detailView').classList.remove('hidden')
+      el('cartView').classList.add('hidden')
+      location.hash = '#/product/' + id
+    }
+
+    function addToCart(id) {
+      const p = PRODUCTS.find(x => x.id === id)
+      cart.push(p)
+      const badge = el('cartBadge')
+      badge.textContent = cart.length; badge.classList.remove('hidden')
+      toast(`🛒 장바구니에 담김: ${p.name}`)
+    }
+
+    function buyNow(id) {
+      const p = PRODUCTS.find(x => x.id === id)
+      toast(`✅ (데모) 구매 완료 처리: ${p.name} — 실제 결제는 일어나지 않습니다.`)
+    }
+
+    function showCart() {
+      const items = cart.length === 0
+        ? '<div class="empty">장바구니가 비어 있습니다.</div>'
+        : cart.map(p => `<div class="cart-item"><div class="thumb">${p.emoji}</div><div style="flex:1"><div class="pname">${p.name}</div><div class="price">${won(p.price)}</div></div></div>`).join('')
+        + `<div style="text-align:right; font-size:18px; font-weight:800; margin-top:12px;">합계: ${won(cart.reduce((s, p) => s + p.price, 0))}</div>`
+      el('cartView').innerHTML = `<button class="btn btn-ghost" onclick="showList()">← 쇼핑 계속하기</button><h2>🛒 장바구니 (${cart.length})</h2>${items}`
+      el('listView').classList.add('hidden')
+      el('detailView').classList.add('hidden')
+      el('cartView').classList.remove('hidden')
+      location.hash = '#/cart'
+    }
+
+    render()
+  </script>
+
+  <!-- Page Agent 데모 (영어 UI). 실제 결제 없음 — 로컬 시뮬레이션 -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/page-agent@1.12.2/dist/iife/page-agent.demo.js?lang=en-US"
+    crossorigin="anonymous"
+  ></script>
+</body>
+</html>
