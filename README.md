@@ -78,6 +78,34 @@ claude
 > ⚠ 준비 PC와 폐쇄망 PC의 **OS/CPU가 같아야** 한다(리눅스 x64 등). 다른 OS에서 받은 크로미움은 못 쓴다.
 > 폐쇄망 PC(WSL)에 Node 가 없으면 먼저 설치해 둔다.
 
+## C. 어느 레포에서든 쓰기 — 전역(user 스코프) 등록
+기본 설치(A)는 이 `playwright-mcp/` 폴더 안에서 `claude` 를 켤 때만 MCP가 붙는다.
+**한 번만 user 스코프로 등록**하면 이후 **모든 레포에서** playwright MCP를 쓸 수 있다.
+
+```bash
+# playwright-mcp 폴더 안에서 (설치가 끝난 뒤) 한 번만
+cd playwright-mcp
+claude mcp add playwright --scope user \
+  -e PLAYWRIGHT_BROWSERS_PATH=0 \
+  -- node "$(pwd)/node_modules/@playwright/mcp/cli.js" --isolated --allow-unrestricted-file-access
+```
+- `--scope user` → 전역 등록(모든 프로젝트에서 사용)
+- `"$(pwd)/..."` → **절대경로**로 고정 (다른 레포에서 켜도 서버·브라우저를 정확히 찾음)
+- `PLAYWRIGHT_BROWSERS_PATH=0` → 브라우저를 `playwright-mcp/node_modules` 안에서 찾음
+
+등록 후 아무 레포에서나:
+```bash
+cd ~/any-other-repo
+claude          # 처음 한 번 playwright MCP approve
+# 예) "https://example.com 열어서 상품 목록 크롤링해서 표로 정리해줘"
+```
+→ LLM이 브라우저를 스스로 운전해 크롤링·조작한다.
+
+> - 등록 확인/삭제: `claude mcp list` / `claude mcp remove playwright`
+> - ⚠ `playwright-mcp` 폴더를 **지우거나 옮기지 말 것** — 브라우저가 그 안 `node_modules` 에 있고
+>   전역 등록이 그 절대경로를 가리킨다. 옮기면 재등록해야 한다.
+> - 플래그명은 버전마다 다를 수 있으니 한 번 `claude mcp add --help` 로 확인.
+
 ---
 
 ## 직접 시켜보기 (approve 후 자연어로)
