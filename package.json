@@ -6,7 +6,8 @@
   "description": "LLM이 브라우저를 스스로 운전하는 Playwright MCP (온라인/폐쇄망 자체완결)",
   "scripts": {
     "setup": "node setup.mjs",
-    "verify": "node verify.mjs"
+    "verify": "node verify.mjs",
+    "crawl": "node crawl.mjs"
   },
   "dependencies": {
     "@playwright/mcp": "0.0.78"

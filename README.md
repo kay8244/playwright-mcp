@@ -117,6 +117,31 @@ page-agent-shop.html 열어서 나이키 검색하고 리뷰 많은 순 1등 상
 ```
 → LLM이 `browser_navigate / browser_snapshot / browser_type / browser_click` 을 알아서 호출한다.
 
+## 반복 작업 빠르게 — 결정적으로 "굳히기" (`crawl.mjs`)
+에이전트형 MCP는 매번 **LLM이 화면을 새로 분석**해서 느리다. **매일/반복되는 똑같은 작업**이면
+분석을 아예 없애고 **고정 셀렉터 스크립트로 재생**하면 수 초 만에 끝난다(분석 0, 재현·감사 가능).
+
+| | 에이전트형 (MCP) | 결정적 (`crawl.mjs`) |
+|---|---|---|
+| 방식 | LLM이 매번 보고 판단 | 셀렉터 고정, 그대로 재생 |
+| 속도 | 느림(단계마다 분석) | **수 초, 분석 0** |
+| 적합 | 처음 보는 페이지·탐색·일회성 | **매일/반복·감사 필요** |
+
+**실전 흐름: MCP로 찾고 → 결정적으로 굳히기**
+1. 흐름은 MCP로 한 번만 탐색(어떤 입력칸/버튼을 거치는지)
+2. 그 셀렉터를 `crawl.mjs` 의 `crawl(page)` 함수에 박아 이후엔 재생만:
+
+```bash
+npm run crawl                                   # 기본: 동봉 미니샵 데모 → crawl-result.json
+node crawl.mjs --url "https://..." --out out.json
+node crawl.mjs --headed                          # 화면 보며 디버깅(WSL은 GUI 필요)
+node crawl.mjs --auth auth.json                  # 로그인 세션 재사용
+```
+> - **다른 사이트로 바꾸기**: `crawl.mjs` 의 `crawl(page)` 함수만 대상에 맞게 수정한다.
+> - **셀렉터 찾기**: MCP가 조작할 때 쓴 셀렉터를 받거나, `npx playwright codegen <URL>`
+>   (클릭할 때마다 코드 자동 생성 — WSL은 GUI 필요).
+> - 결과는 `crawl-result.json` 에 JSON 으로 저장(`.gitignore` 처리됨).
+
 ## 옵션 (`.mcp.json` 의 args)
 | 목적 | 방법 |
 |---|---|
@@ -132,6 +157,7 @@ page-agent-shop.html 열어서 나이키 검색하고 리뷰 많은 순 1등 상
 - `.mcp.json` — Claude Code용 MCP 설정. **절대경로 없음**, `env`로 `PLAYWRIGHT_BROWSERS_PATH=0`
 - `setup.mjs` — 원커맨드 부트스트랩(install→크로미움→verify). `npm run setup` 으로 호출
 - `verify.mjs` — 자체검증(navigate→키인→클릭→결과추출, 네트워크 0)
+- `crawl.mjs` — 결정적 크롤러(반복 작업 굳히기). `npm run crawl` 으로 호출
 - `page-agent-shop.html` — 데모/검증 대상 페이지
 - `package.json` — `@playwright/mcp@0.0.78` 고정
 
