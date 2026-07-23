@@ -78,9 +78,16 @@ claude
 > ⚠ 준비 PC와 폐쇄망 PC의 **OS/CPU가 같아야** 한다(리눅스 x64 등). 다른 OS에서 받은 크로미움은 못 쓴다.
 > 폐쇄망 PC(WSL)에 Node 가 없으면 먼저 설치해 둔다.
 
-## C. 어느 레포에서든 쓰기 — 전역(user 스코프) 등록
-기본 설치(A)는 이 폴더 안에서 `claude` 를 켤 때만 MCP가 붙는다.
-**한 번만 user 스코프로 등록**하면 이후 **모든 레포에서** playwright MCP를 쓸 수 있다.
+## C. 어느 레포에서든 쓰기 — 전역 등록
+기본 설치(A)는 이 폴더 안에서 `claude` 를 켤 때만 MCP가 붙는다(이 폴더엔 이미 `.mcp.json` 이 있어 **그냥 됨**). 다른 레포에서도 쓰려면 아래처럼 등록한다.
+
+> ### ⚠️ 제일 중요 — playwright 는 "한 곳에만" 등록
+> `playwright` 를 **두 군데 이상**에 정의하면 서로 충돌해 `/mcp` 에 **`failed`** 로 뜬다.
+> (예: 이 폴더의 `.mcp.json` + `~/.claude.json` 을 **둘 다** 등록 → 이 폴더에서 `failed`.)
+> **한 방법만 골라** 쓰고, 이미 등록돼 있으면 다른 곳에 또 넣지 말 것.
+
+> 💡 **사내/래핑 빌드에서 제일 안전한 방법 = 방법 3(각 레포에 `.mcp.json`).**
+> CLI(방법 1)나 `~/.claude.json`(방법 2)이 wrapper에 막히거나 충돌나면 방법 3으로 가라.
 
 먼저 이 폴더의 **절대경로**를 확인해 둔다(아래에서 씀):
 ```bash
@@ -117,6 +124,27 @@ code ~/.claude.json      # (또는 VS Code에서 직접 열기)
 ```
 > - `args` 첫 줄 경로는 위 `echo` 로 나온 **실제 절대경로 그대로**로 바꾼다.
 > - JSON이라 **콤마·중괄호** 주의(VS Code가 빨간줄로 오류 표시). 저장 전 빨간줄 없어야 함.
+> - ⚠ 이 폴더에서 `claude` 를 켤 거면, 폴더의 `.mcp.json` 과 **중복**돼 `failed` 난다 → 방법 2 대신 방법 3을 쓰거나, 이 폴더에선 켜지 말 것.
+
+### 방법 3 — 각 레포에 `.mcp.json` (사내/래핑 빌드에 제일 안전, 권장)
+전역 등록이 wrapper에 막히거나 자꾸 `failed` 나면, **쓰려는 레포 루트에 `.mcp.json` 하나**만 둔다. 이건 Claude Code 기본 기능이라 wrapper가 안 건드린다.
+```json
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "node",
+      "args": [
+        "/home/사용자/playwright-mcp/node_modules/@playwright/mcp/cli.js",
+        "--isolated",
+        "--allow-unrestricted-file-access"
+      ],
+      "env": { "PLAYWRIGHT_BROWSERS_PATH": "0" }
+    }
+  }
+}
+```
+> - 경로는 실제 절대경로로 교체. 그 레포에서 `claude` → approve → `/mcp` 에 playwright.
+> - ⚠ **한 레포에 하나만.** `~/.claude.json` 에도 동시에 넣으면 중복 충돌(`failed`).
 
 ### 등록 후 확인
 아무 폴더에서나:
@@ -126,8 +154,9 @@ claude          # 채팅 화면에서
 ```
 그다음 예: `"https://example.com 열어서 상품 목록 크롤링해서 표로 정리해줘"` → LLM이 브라우저를 스스로 운전한다.
 
-> ⚠ 이 폴더를 **지우거나 옮기지 말 것** — 브라우저가 그 안 `node_modules` 에 있고 등록이 그 절대경로를 가리킨다. 옮겼으면 재등록.
-> 💡 사내 배포판(wrapper)에서 `claude` 실행 때마다 뜨는 `sh: Syntax error` 배너는 대개 **노이즈**다 — claude 채팅 화면이 열리고 `/mcp` 가 뜨면 정상 동작하는 것.
+> - `/mcp` 에 playwright 가 **`failed`** 로 뜨면 → ① **중복 등록**(두 곳에 정의)일 확률이 가장 높다. 한 곳만 남기고 지워라. ② 그래도면 서버가 못 뜨는 것 → 그 폴더에서 `npm run verify` 로 원인(브라우저 미설치 등) 확인.
+> - ⚠ 이 폴더를 **지우거나 옮기지 말 것** — 브라우저가 그 안 `node_modules` 에 있고 등록이 그 절대경로를 가리킨다. 옮겼으면 재등록.
+> - 💡 사내 배포판(wrapper)에서 `claude` 실행 때마다 뜨는 `sh: Syntax error` 배너는 대개 **노이즈**다 — claude 채팅 화면이 열리고 `/mcp` 가 뜨면 정상 동작하는 것.
 
 ---
 
