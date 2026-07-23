@@ -79,32 +79,55 @@ claude
 > 폐쇄망 PC(WSL)에 Node 가 없으면 먼저 설치해 둔다.
 
 ## C. 어느 레포에서든 쓰기 — 전역(user 스코프) 등록
-기본 설치(A)는 이 `playwright-mcp/` 폴더 안에서 `claude` 를 켤 때만 MCP가 붙는다.
+기본 설치(A)는 이 폴더 안에서 `claude` 를 켤 때만 MCP가 붙는다.
 **한 번만 user 스코프로 등록**하면 이후 **모든 레포에서** playwright MCP를 쓸 수 있다.
 
+먼저 이 폴더의 **절대경로**를 확인해 둔다(아래에서 씀):
 ```bash
-# playwright-mcp 폴더 안에서 (설치가 끝난 뒤) 한 번만
 cd playwright-mcp
-claude mcp add playwright --scope user \
-  -e PLAYWRIGHT_BROWSERS_PATH=0 \
-  -- node "$(pwd)/node_modules/@playwright/mcp/cli.js" --isolated --allow-unrestricted-file-access
+echo "$PWD/node_modules/@playwright/mcp/cli.js"   # 예: /home/사용자/playwright-mcp/node_modules/@playwright/mcp/cli.js
+ls  "$PWD/node_modules/@playwright/mcp/cli.js"    # 파일이 실제 있어야 함(없으면 npm run setup 먼저)
 ```
-- `--scope user` → 전역 등록(모든 프로젝트에서 사용)
-- `"$(pwd)/..."` → **절대경로**로 고정 (다른 레포에서 켜도 서버·브라우저를 정확히 찾음)
-- `PLAYWRIGHT_BROWSERS_PATH=0` → 브라우저를 `playwright-mcp/node_modules` 안에서 찾음
 
-등록 후 아무 레포에서나:
+### 방법 1 — CLI (일반 환경)
 ```bash
-cd ~/any-other-repo
-claude          # 처음 한 번 playwright MCP approve
-# 예) "https://example.com 열어서 상품 목록 크롤링해서 표로 정리해줘"
+claude mcp add playwright --scope user -e PLAYWRIGHT_BROWSERS_PATH=0 -- node "$PWD/node_modules/@playwright/mcp/cli.js" --isolated --allow-unrestricted-file-access
 ```
-→ LLM이 브라우저를 스스로 운전해 크롤링·조작한다.
+> `--scope user` = 전역, `"$PWD/..."` = 절대경로 고정. 플래그는 버전마다 다를 수 있으니 `claude mcp add --help` 참고.
 
-> - 등록 확인/삭제: `claude mcp list` / `claude mcp remove playwright`
-> - ⚠ `playwright-mcp` 폴더를 **지우거나 옮기지 말 것** — 브라우저가 그 안 `node_modules` 에 있고
->   전역 등록이 그 절대경로를 가리킨다. 옮기면 재등록해야 한다.
-> - 플래그명은 버전마다 다를 수 있으니 한 번 `claude mcp add --help` 로 확인.
+### 방법 2 — 설정파일 직접 등록 (CLI가 막히는 사내/래핑 환경)
+`claude mcp add` 가 `sh: Syntax error` 등으로 안 되면(사내 배포판 wrapper가 인자를 못 먹는 경우), **CLI를 안 거치고 설정파일에 직접** 써넣는다. VS Code로 열면 붙여넣기가 안 깨진다.
+```bash
+code ~/.claude.json      # (또는 VS Code에서 직접 열기)
+```
+최상단 `{` 바로 아래에 `mcpServers` 블록을 추가한다. (이미 `"mcpServers"` 가 있으면 그 안에 `"playwright"` 키만 추가):
+```json
+  "mcpServers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/home/사용자/playwright-mcp/node_modules/@playwright/mcp/cli.js",
+        "--isolated",
+        "--allow-unrestricted-file-access"
+      ],
+      "env": { "PLAYWRIGHT_BROWSERS_PATH": "0" }
+    }
+  },
+```
+> - `args` 첫 줄 경로는 위 `echo` 로 나온 **실제 절대경로 그대로**로 바꾼다.
+> - JSON이라 **콤마·중괄호** 주의(VS Code가 빨간줄로 오류 표시). 저장 전 빨간줄 없어야 함.
+
+### 등록 후 확인
+아무 폴더에서나:
+```bash
+claude          # 채팅 화면에서
+/mcp            # 목록에 playwright 가 보이면 성공 (approve 뜨면 승인)
+```
+그다음 예: `"https://example.com 열어서 상품 목록 크롤링해서 표로 정리해줘"` → LLM이 브라우저를 스스로 운전한다.
+
+> ⚠ 이 폴더를 **지우거나 옮기지 말 것** — 브라우저가 그 안 `node_modules` 에 있고 등록이 그 절대경로를 가리킨다. 옮겼으면 재등록.
+> 💡 사내 배포판(wrapper)에서 `claude` 실행 때마다 뜨는 `sh: Syntax error` 배너는 대개 **노이즈**다 — claude 채팅 화면이 열리고 `/mcp` 가 뜨면 정상 동작하는 것.
 
 ---
 
