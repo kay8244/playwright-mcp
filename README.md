@@ -78,56 +78,43 @@ claude
 > ⚠ 준비 PC와 폐쇄망 PC의 **OS/CPU가 같아야** 한다(리눅스 x64 등). 다른 OS에서 받은 크로미움은 못 쓴다.
 > 폐쇄망 PC(WSL)에 Node 가 없으면 먼저 설치해 둔다.
 
-## C. 어느 레포에서든 쓰기 — 전역 등록
-기본 설치(A)는 이 폴더 안에서 `claude` 를 켤 때만 MCP가 붙는다(이 폴더엔 이미 `.mcp.json` 이 있어 **그냥 됨**). 다른 레포에서도 쓰려면 아래처럼 등록한다.
+## C. 어느 레포에서든 쓰기 — 전역(user 스코프) 등록
+기본 설치(A)는 이 폴더 안에서 `claude` 를 켤 때만 붙는다. **한 번만 전역 등록**하면 어느 레포에서든 playwright MCP가 붙는다.
 
-> ### ⚠️ 제일 중요 — playwright 는 "한 곳에만" 등록
-> `playwright` 를 **두 군데 이상**에 정의하면 서로 충돌해 `/mcp` 에 **`failed`** 로 뜬다.
-> (예: 이 폴더의 `.mcp.json` + `~/.claude.json` 을 **둘 다** 등록 → 이 폴더에서 `failed`.)
-> **한 방법만 골라** 쓰고, 이미 등록돼 있으면 다른 곳에 또 넣지 말 것.
-
-> 💡 **사내/래핑 빌드에서 제일 안전한 방법 = 방법 3(각 레포에 `.mcp.json`).**
-> CLI(방법 1)나 `~/.claude.json`(방법 2)이 wrapper에 막히거나 충돌나면 방법 3으로 가라.
-
-먼저 이 폴더의 **절대경로**를 확인해 둔다(아래에서 씀):
+### 한 줄로 — `npm run install-global` (권장)
 ```bash
 cd playwright-mcp
-echo "$PWD/node_modules/@playwright/mcp/cli.js"   # 예: /home/사용자/playwright-mcp/node_modules/@playwright/mcp/cli.js
-ls  "$PWD/node_modules/@playwright/mcp/cli.js"    # 파일이 실제 있어야 함(없으면 npm run setup 먼저)
+npm run setup            # (아직이면) 초록불까지
+npm run install-global   # ~/.claude.json 최상위 mcpServers 에 playwright 를 "안전하게" 추가
 ```
+이 스크립트는 `~/.claude.json` 을 **읽어서 파싱→추가→다시 저장**하므로 손으로 JSON 편집하다 깨질 일이 없다. 이 폴더의 cli.js **절대경로**도 자동으로 넣는다.
+- 해제: `npm run uninstall-global`
+- ⚠ **JSON은 최상위 `mcpServers` 에만 넣는다.** `~/.claude.json` 의 `projects.<경로>.mcpServers` 는 프로젝트별이라 **전역 아님**(이 스크립트는 최상위에 넣어줌).
 
-### 방법 1 — CLI (일반 환경)
+### 등록 후 확인 — ⚠ 반드시 "딴 폴더"에서
+```bash
+cd ~            # playwright-mcp 폴더가 아닌 아무 폴더
+claude
+/mcp            # playwright 가 connected 면 전역 성공 🎉  (approve 뜨면 승인)
+```
+그다음 예: `"https://example.com 열어서 상품 목록 크롤링해서 표로 정리해줘"` → LLM이 브라우저를 스스로 운전한다.
+
+> **왜 딴 폴더?** playwright-mcp 폴더엔 자체 `.mcp.json` 이 있어서, 그 안에서 켜면 전역 것과 **중복→`failed`** 난다. (아래 "중복 주의")
+
+### ⚠️ playwright 는 "한 곳에만" 등록 (중복 = `failed`)
+`playwright` 를 **두 군데 이상**(예: 폴더 `.mcp.json` + `~/.claude.json`)에 정의하면 충돌해 `/mcp` 에 **`failed`** 로 뜬다. `failed` 뜨면:
+1. **중복부터 의심** — 한 곳만 남기고 지운다. (제일 흔한 원인)
+2. 그래도면 서버가 못 뜨는 것 → 그 폴더에서 `npm run verify` 로 원인(브라우저 미설치 등) 확인.
+
+<details>
+<summary>수동 방법 (스크립트 못 쓸 때) — CLI / 설정파일 / 레포별</summary>
+
+**CLI (일반 환경)** — 사내 wrapper 환경에선 `sh: Syntax error` 로 막힐 수 있음:
 ```bash
 claude mcp add playwright --scope user -e PLAYWRIGHT_BROWSERS_PATH=0 -- node "$PWD/node_modules/@playwright/mcp/cli.js" --isolated --allow-unrestricted-file-access
 ```
-> `--scope user` = 전역, `"$PWD/..."` = 절대경로 고정. 플래그는 버전마다 다를 수 있으니 `claude mcp add --help` 참고.
 
-### 방법 2 — 설정파일 직접 등록 (CLI가 막히는 사내/래핑 환경)
-`claude mcp add` 가 `sh: Syntax error` 등으로 안 되면(사내 배포판 wrapper가 인자를 못 먹는 경우), **CLI를 안 거치고 설정파일에 직접** 써넣는다. VS Code로 열면 붙여넣기가 안 깨진다.
-```bash
-code ~/.claude.json      # (또는 VS Code에서 직접 열기)
-```
-최상단 `{` 바로 아래에 `mcpServers` 블록을 추가한다. (이미 `"mcpServers"` 가 있으면 그 안에 `"playwright"` 키만 추가):
-```json
-  "mcpServers": {
-    "playwright": {
-      "type": "stdio",
-      "command": "node",
-      "args": [
-        "/home/사용자/playwright-mcp/node_modules/@playwright/mcp/cli.js",
-        "--isolated",
-        "--allow-unrestricted-file-access"
-      ],
-      "env": { "PLAYWRIGHT_BROWSERS_PATH": "0" }
-    }
-  },
-```
-> - `args` 첫 줄 경로는 위 `echo` 로 나온 **실제 절대경로 그대로**로 바꾼다.
-> - JSON이라 **콤마·중괄호** 주의(VS Code가 빨간줄로 오류 표시). 저장 전 빨간줄 없어야 함.
-> - ⚠ 이 폴더에서 `claude` 를 켤 거면, 폴더의 `.mcp.json` 과 **중복**돼 `failed` 난다 → 방법 2 대신 방법 3을 쓰거나, 이 폴더에선 켜지 말 것.
-
-### 방법 3 — 각 레포에 `.mcp.json` (사내/래핑 빌드에 제일 안전, 권장)
-전역 등록이 wrapper에 막히거나 자꾸 `failed` 나면, **쓰려는 레포 루트에 `.mcp.json` 하나**만 둔다. 이건 Claude Code 기본 기능이라 wrapper가 안 건드린다.
+**레포별 `.mcp.json`** — 전역이 계속 막히면, 쓰려는 레포 루트에 이 파일 하나만 두기(절대경로):
 ```json
 {
   "mcpServers": {
@@ -143,19 +130,10 @@ code ~/.claude.json      # (또는 VS Code에서 직접 열기)
   }
 }
 ```
-> - 경로는 실제 절대경로로 교체. 그 레포에서 `claude` → approve → `/mcp` 에 playwright.
-> - ⚠ **한 레포에 하나만.** `~/.claude.json` 에도 동시에 넣으면 중복 충돌(`failed`).
+> 경로는 실제 절대경로로 교체. **한 곳에만** — `~/.claude.json` 에도 동시에 넣으면 중복 충돌.
+</details>
 
-### 등록 후 확인
-아무 폴더에서나:
-```bash
-claude          # 채팅 화면에서
-/mcp            # 목록에 playwright 가 보이면 성공 (approve 뜨면 승인)
-```
-그다음 예: `"https://example.com 열어서 상품 목록 크롤링해서 표로 정리해줘"` → LLM이 브라우저를 스스로 운전한다.
-
-> - `/mcp` 에 playwright 가 **`failed`** 로 뜨면 → ① **중복 등록**(두 곳에 정의)일 확률이 가장 높다. 한 곳만 남기고 지워라. ② 그래도면 서버가 못 뜨는 것 → 그 폴더에서 `npm run verify` 로 원인(브라우저 미설치 등) 확인.
-> - ⚠ 이 폴더를 **지우거나 옮기지 말 것** — 브라우저가 그 안 `node_modules` 에 있고 등록이 그 절대경로를 가리킨다. 옮겼으면 재등록.
+> - ⚠ 이 폴더를 **지우거나 옮기지 말 것** — 브라우저가 그 안 `node_modules` 에 있고 등록이 그 절대경로를 가리킨다. 옮겼으면 `npm run install-global` 다시.
 > - 💡 사내 배포판(wrapper)에서 `claude` 실행 때마다 뜨는 `sh: Syntax error` 배너는 대개 **노이즈**다 — claude 채팅 화면이 열리고 `/mcp` 가 뜨면 정상 동작하는 것.
 
 ---
@@ -210,6 +188,7 @@ node crawl.mjs --auth auth.json                  # 로그인 세션 재사용
 - `setup.mjs` — 원커맨드 부트스트랩(install→크로미움→verify). `npm run setup` 으로 호출
 - `verify.mjs` — 자체검증(navigate→키인→클릭→결과추출, 네트워크 0)
 - `crawl.mjs` — 결정적 크롤러(반복 작업 굳히기). `npm run crawl` 으로 호출
+- `install-global.mjs` — 전역 등록(`~/.claude.json` 최상위 mcpServers에 안전 추가). `npm run install-global`
 - `page-agent-shop.html` — 데모/검증 대상 페이지
 - `package.json` — `@playwright/mcp@0.0.78` 고정
 

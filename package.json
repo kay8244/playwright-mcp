@@ -7,7 +7,9 @@
   "scripts": {
     "setup": "node setup.mjs",
     "verify": "node verify.mjs",
-    "crawl": "node crawl.mjs"
+    "crawl": "node crawl.mjs",
+    "install-global": "node install-global.mjs",
+    "uninstall-global": "node install-global.mjs --remove"
   },
   "dependencies": {
     "@playwright/mcp": "0.0.78"
