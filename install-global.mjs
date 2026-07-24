@@ -45,13 +45,18 @@ if (REMOVE) {
   delete cfg.mcpServers.playwright
   console.log('🗑  전역 등록 해제 — mcpServers.playwright 제거')
 } else {
+  // 브라우저를 node_modules 안에서 찾게 하고(0), WSL 등 GUI 있으면 DISPLAY 를 넘겨
+  // 브라우저 창이 실제로 화면에 뜨게 한다(headed). DISPLAY 없으면(헤드리스 서버) 생략.
+  const env = { PLAYWRIGHT_BROWSERS_PATH: '0' }
+  if (process.env.DISPLAY) env.DISPLAY = process.env.DISPLAY
   cfg.mcpServers.playwright = {
     command: 'node',
     args: [CLI, '--isolated', '--allow-unrestricted-file-access'],
-    env: { PLAYWRIGHT_BROWSERS_PATH: '0' },
+    env,
   }
   console.log('✅ 전역 등록 완료 — ~/.claude.json 최상위 mcpServers.playwright')
   console.log('   cli:', CLI)
+  console.log('   DISPLAY:', process.env.DISPLAY ? `${process.env.DISPLAY} (브라우저 창 보임/headed)` : '(없음 → 헤드리스)')
 }
 
 fs.writeFileSync(CONFIG, JSON.stringify(cfg, null, 2))
